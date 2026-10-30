@@ -1,0 +1,180 @@
+{
+  "info": {
+    "name": "Chat Backend Demo",
+    "description": "Chat backend with PostgreSQL (users & chats) and Firebase Firestore (messages, read receipts, last seen). Run the requests top to bottom: IDs are captured into collection variables automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "userAId", "value": "" },
+    { "key": "userBId", "value": "" },
+    { "key": "chatId", "value": "" },
+    { "key": "messageId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+    },
+    {
+      "name": "Create User A",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.collectionVariables.set('userAId', pm.response.json().userId);",
+              "pm.test('201', () => pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"displayName\": \"Alice\"\n}" },
+        "url": "{{baseUrl}}/user"
+      }
+    },
+    {
+      "name": "Create User B",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.collectionVariables.set('userBId', pm.response.json().userId);",
+              "pm.test('201', () => pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"displayName\": \"Bob\"\n}" },
+        "url": "{{baseUrl}}/user"
+      }
+    },
+    {
+      "name": "1. Create or Get Chat",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.collectionVariables.set('chatId', pm.response.json().chatId);",
+              "pm.test('has chatId', () => pm.expect(pm.response.json().chatId).to.be.a('string'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"userAId\": \"{{userAId}}\",\n  \"userBId\": \"{{userBId}}\"\n}" },
+        "url": "{{baseUrl}}/chat/create"
+      }
+    },
+    {
+      "name": "2. Send Message",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.collectionVariables.set('messageId', pm.response.json().id);",
+              "pm.test('201', () => pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"senderId\": \"{{userAId}}\",\n  \"text\": \"Hi Bob!\"\n}" },
+        "url": "{{baseUrl}}/chat/{{chatId}}/message/send"
+      }
+    },
+    {
+      "name": "3. Get Messages",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/chat/{{chatId}}/messages?limit=50",
+          "host": ["{{baseUrl}}"],
+          "path": ["chat", "{{chatId}}", "messages"],
+          "query": [{ "key": "limit", "value": "50" }]
+        }
+      }
+    },
+    {
+      "name": "4. Mark Message Read",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"userId\": \"{{userBId}}\"\n}" },
+        "url": "{{baseUrl}}/chat/{{chatId}}/message/{{messageId}}/read"
+      }
+    },
+    {
+      "name": "5. Update Last Seen",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"userId\": \"{{userBId}}\",\n  \"messageId\": \"{{messageId}}\"\n}" },
+        "url": "{{baseUrl}}/chat/{{chatId}}/lastseen"
+      }
+    },
+    {
+      "name": "6. List User Chats",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/user/{{userAId}}/chats"
+      }
+    },
+    {
+      "name": "Bonus: Create Group Chat",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"title\": \"Team\",\n  \"memberIds\": [\"{{userAId}}\", \"{{userBId}}\"]\n}" },
+        "url": "{{baseUrl}}/chat/group"
+      }
+    },
+    {
+      "name": "Bonus: Add Member",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"userId\": \"{{userBId}}\"\n}" },
+        "url": "{{baseUrl}}/chat/{{chatId}}/member"
+      }
+    },
+    {
+      "name": "Bonus: Remove Member",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/chat/{{chatId}}/member/{{userBId}}"
+      }
+    },
+    {
+      "name": "Bonus: Edit Message",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"senderId\": \"{{userAId}}\",\n  \"text\": \"Hi Bob! (edited)\"\n}" },
+        "url": "{{baseUrl}}/chat/{{chatId}}/message/{{messageId}}"
+      }
+    },
+    {
+      "name": "Bonus: Delete Message",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"senderId\": \"{{userAId}}\"\n}" },
+        "url": "{{baseUrl}}/chat/{{chatId}}/message/{{messageId}}"
+      }
+    }
+  ]
+}
